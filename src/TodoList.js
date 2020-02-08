@@ -1,6 +1,10 @@
 import React, { Component } from "react";
 import TodoItems from "./TodoItems";
 import "./TodoList.css";
+import Promise from "bluebird";
+
+const AppDAO = require('./db/dao').default
+const Crud = require('./db/crud').default
 
 class TodoList extends Component {
     constructor(props) {
@@ -12,6 +16,46 @@ class TodoList extends Component {
 
         this.addItem = this.addItem.bind(this);
         this.deleteItem = this.deleteItem.bind(this);
+        this.setDatabase();
+        this.loadData();
+    }
+
+    setDatabase() {
+        this.dao = new AppDAO('./database.sqlite3');
+        this.db = new Crud(this.dao);
+        this.db.createTable()
+            .then(() => {
+                console.log('db is created...')
+            })
+            .catch((err) => {
+                console.log('Error: ')
+                console.log(JSON.stringify(err))
+            });
+    }
+
+    loadData() {
+        var getAllData = this.db.getAll();
+
+        Promise.all(getAllData).then((data) => {
+            console.log(data);
+            this.loadItem(data);
+        })
+
+    }
+
+    loadItem(data) {
+        Object.keys(data).forEach((item) => {
+            var newItem = {
+                text: data[item].ToDo,
+                key: data[item].DT
+            };
+
+            this.setState((prevState) => {
+                return {
+                    items: prevState.items.concat(newItem)
+                };
+            });
+        });
     }
 
     addItem(e) {
@@ -27,6 +71,7 @@ class TodoList extends Component {
                 };
             });
 
+            this.db.insert(newItem.text, newItem.key);
             this._inputElement.value = "";
         }
 
@@ -43,6 +88,8 @@ class TodoList extends Component {
         this.setState({
             items: filteredItems
         });
+
+        this.db.delete(key);
     }
 
     render() {
